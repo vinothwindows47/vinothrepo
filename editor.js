@@ -3,13 +3,11 @@ import commonUtils from "cide/utils/common/commonutils";
 
 export default Ember.Controller.extend(breakpoint_Mixin, {
 	
-	appCtrl: Em.injected.controller('application'),
-	codeEditorCtrl: Embed.inject.controller('code/editor'),
-	
-	commonConfCtrl: Em.inject.controllers('configuration/common_configuration'),
-	
-	winDebugCtrl: Em.inject.controller('window/debugging'),
-	winTerminalCtrl: Em.inject.controller("window/terminal"),
+	appCtrl: Em.inject.controller('application'),
+	codeEditorCtrl: Em.inject.controller('code/editor'),
+	commonConfCtrl: Em.inject.controller('configuration/common_configuration'),
+	winDebugCtrl: Em.inject.controller('window/debug'),
+	winTermCtrl: Em.inject.controller("window/terminal"),
 	
 	debugMenuItems: {
 						left: [
