@@ -1,7 +1,7 @@
-<div class="bpoint-mainElem">
-	<ul class="bpointItems">
+<div class="bpoint-mainElement">
+	<ul class="bpointItems_change">
 		{{#each bpointItems.content as |bpoint-item|}}
-			<li class="bpoint-item" >
+			<li class="bpoint-item_items" >
 				<div class="bpointChkbox customChkbox" {{ action "bpointchkChange" bpoint-item}}>
 					<input type="checkbox" checked={{bpoint-item.selected}}>
 					<label></label>
