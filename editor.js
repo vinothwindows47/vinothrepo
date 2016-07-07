@@ -3,11 +3,11 @@ import commonUtils from "cide/utils/common/commonutils";
 
 export default Ember.Controller.extend(breakpoint_Mixin, {
 	
-	appCtrl: Em.inject.controller('application'),
-	codeEditorCtrl: Em.inject.controller('code/editor'),
-	commonConfCtrl: Em.inject.controller('configuration/common_configuration'),
-	winDebugCtrl: Em.inject.controller('window/debug'),
-	winTermCtrl: Em.inject.controller("window/terminal"),
+	sessFilename = self.get('codeEditorCtrl').getSessionFilename(),
+	isshowDebugView = self.get('isShowDebugView'),
+	isCurrConfigId = self.get('debugControllers.configId'),
+	isJavaBox = (self.get('currentUser.currentBox.type') === "java" || self.get('currentUser.currentBox.type') === "zohobox") ? true : false,
+	isJavaFile = (commonUtils.getFileExtension(sessFilename) === "java") ? true : false;
 	
 	debugMenuItems: {
 						left: [
