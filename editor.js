@@ -1,172 +1,76 @@
 import breakpoint_Mixin from 'cide/mixins/debug/break-point';
 import commonUtils from "cide/utils/common/commonutils";
-import viewUtils from "cide/utils/viewutils";
-import websocketMixin from 'cide/mixins/websocket/websocketutil_mixin';
 
-export default Ember.Controller.extend(breakpoint_Mixin, websocketMixin, {
+export default Ember.Controller.extend(breakpoint_Mixin, {
 	
 	appCtrl: Em.inject.controller('application'),
 	codeEditorCtrl: Em.inject.controller('code/editor'),
 	commonConfCtrl: Em.inject.controller('configuration/common_configuration'),
 	winDebugCtrl: Em.inject.controller('window/debug'),
 	winTerCtrl: Em.inject.controller("window/terminal"),
-	variablesFoundObserver: false,
-	threadViewOpen: true,
-	isDebuggerPaused: false,
-	tokenInfo: { tree: null, val: null },
 	
-	debugMenuItems: [
-	                 {
-	                	 name: "Variables",
-	                	 id: "debug_variables",
-	                	 partial: "debug/variable",
-	                	 location: "north",
-	                	 expand: true
-	                 },
-	                 {
-	                	 name: "Threads",
-	                	 id: "debug_threads",
-	                	 partial: "debug/threads",
-	                	 location: "center",
-	                	 expand: false
-	                 },
-	                 {
-	                	 name: "Breakpoints",
-	                	 id: "debug_breakpoints",
-	                	 partial: "debug/breakpoints",
-	                	 location: "south",
-	                	 expand: false
-	                 }
-	                 ],
+	debugMenuItems: {
+						left: [
+								Ember.Object.create({
+									item: 'Threads',
+									id: 'debugThreads',
+									active: true
+								  })
+						      ],
+						 center: [
+			                   		Ember.Object.create({
+			                   			item: 'Variables',
+			                   			id: 'debugVariable',
+			                   			active: true
+			                   		}),
+			                   		Ember.Object.create({
+			                   			item: 'Breakpoints',
+			                   			id: 'debugBreakpoint',
+			                   			active: false
+			                   		})
+			                   	]
+						},
 	debugVariables: [],
 	debugThreads: [],
 	isShowDebugView: false,
-	debugControllers: {filepath: '', debug: false, next: false },
+	basic: { configId: '', name: ''}, // for debugging from debug view
+	debugControllers: { configId: '', filepath: '', debug: false, next: false },
 	debugActionAlreadyRunning: false,
+	debugCenterType: 'debug/variable',
+	debugLeftType: 'debug/threads',
 	
 	loaddebugMenuItems: function() {
 		var self = this;
 		self.getallbreakPoints();
-	},
-	
-	isDebugActive: function() {
-		var self = this;
-		return self.get('debugControllers.debug');
-	},
-	
-	getCurrentPausedLine: function() {
-		var self = this,
-		getPreviousDebugMarkerSession = self.get('appCtrl').getLastDebugMarkerSession();
-		if(!Ember.isNone(getPreviousDebugMarkerSession) && self.get('isDebuggerPaused')) {
-			let getDebugMarkers = getPreviousDebugMarkerSession.getMarkers();
-			for(let markerObj in getDebugMarkers){
-				let classType = getDebugMarkers[markerObj].clazz;
-				if(classType === "ace_debug_activeline"){
-					let markerRow = getDebugMarkers[markerObj].range.start.row+1;
-					return markerRow;
-				}
-			}
-		}
-		return -1;
-	},
+	}.on('init'),
 	
 	debuggingController: function(debuggingObj){
 		var self = this;
-		var filepath = debuggingObj.filepath;
-		var linenumber = debuggingObj.linenumber;
-		var variablesObj = debuggingObj.variable;
-		var debugTraceObj = debuggingObj.debugtrace;
-		var nextControl = debuggingObj.next;
-		var debugControl = debuggingObj.debug;
-		var debugMsg = debuggingObj.message;
-		if(!Em.isNone(debugMsg)) {
-			commonUtils.showFormInfoMessage(debugMsg);
-		}
+		var configId = parseInt(debuggingObj.get('id'));
+		var filepath = debuggingObj.get('filepath');
+		var linenumber = debuggingObj.get('linenumber');
+		var variablesObj = debuggingObj.get('variable');
+		var debugTraceObj = debuggingObj.get('debugtrace');
+		var nextControl = debuggingObj.get('next');
+		var debugControl = debuggingObj.get('debug');
+		self.set('debugControllers.configId', configId);
 		self.set('debugControllers.filepath', filepath);
 		self.set('debugVariables', variablesObj);
 		self.set('debugThreads', debugTraceObj);
 		self.set('debugControllers.next', nextControl);
 		self.set('debugControllers.debug', debugControl);
-		if(variablesObj.length > 0) {
-		    self.set('variablesFoundObserver', true);
-		}
 		if(filepath !==null && filepath !==undefined) {
-		    if(!(commonUtils.isUserinCurrentBrowserTab())) {
-		        if(!CideChatBlink.stopblink) {
-        			CideChatBlink.start("Paused in debugger");
-        			self.get('appCtrl').set('appObserver.collabBlinkChat', true);
-        		}
-		    }
-		    self.set('isDebuggerPaused', true);
 			self.get("appCtrl").send('openFile', filepath, { "setlineNumber": linenumber, "debug": true, "debugNext": nextControl, "debugline": linenumber});
 		} else {
 			self.send('clearDebugMarker');
 		}
-		if(debugControl) {
-			self.send('show_debugView');
-		}
-	},
-	
-	initiateDebugger: function() {
-		wsTerminal.send('{group: DEBUG, action: CONNECT}');
-	},
-	
-	handleServerMsg: function(msgObj) {
-	  let self = this;
-	  switch(msgObj.group) {
-	  	case "DEBUG":
-	  		var breakpoints = JSON.parse(msgObj.breakpoint);
-			  breakpoints.forEach(function(bpointObj) {
-				  self.debuggingController(bpointObj);
-			  });
-			  self.set('debugActionAlreadyRunning', false);
-	  		break;
-	  	case "TOKEN_INFO":
-	  		var tokenInfo = JSON.parse(msgObj.value);
-	  		self.set('tokenInfo.tree', tokenInfo.variable);
-	  		self.set('tokenInfo.val', tokenInfo.displayName);
-	  		if(tokenInfo.variable.length > 0) {
-	  			self.get('codeEditorCtrl').showTokenInfo();
-	  		}
-	  		break;
-	  }
-	},
-	
-	setPaneSizes: function() {
-		let self = this,
-		debugLayout = Em.$("#debugMainView").layout(),
-		debugSouthLayout = Em.$("#debug_southPane").layout(),
-		northSize = debugLayout.state.center.maxHeight,
-		centerSize = debugSouthLayout.state.center.maxHeight,
-		southSize = debugSouthLayout.state.south.size;
-		if(northSize > 40) {
-			Ember.set(self.get('debugMenuItems').findBy("id", "debug_variables"), 'expand', true);
-		}
-		else {
-			Ember.set(self.get('debugMenuItems').findBy("id", "debug_variables"), 'expand', false);
-		}
-		if(centerSize > 40) {
-			Ember.set(self.get('debugMenuItems').findBy("id", "debug_threads"), 'expand', true);
-		}
-		else {
-			Ember.set(self.get('debugMenuItems').findBy("id", "debug_threads"), 'expand', false);
-		}
-		if(southSize < 40) {
-			Ember.set(self.get('debugMenuItems').findBy("id", "debug_breakpoints"), 'expand', false);
-			$("#bpoint-mainElem").hide();
-		}
+		self.send('show_debugView');
 	},
 
 	actions: {
 		
 		show_debugView: function() {
 			var self = this;
-			let windowViews = self.get('appCtrl').get('windowViews.pagePreference.views'),
-			isViewRender = viewUtils.isViewRendered(windowViews, "debug");
-			if(isViewRender) {
-				return;
-			}
-			self.loaddebugMenuItems();
 			self.get('appCtrl').send('hideOutletLayoutView', 'explorer');
 			self.set('isShowDebugView', true);
 			self.get('appCtrl').showLayoutView({
@@ -181,25 +85,32 @@ export default Ember.Controller.extend(breakpoint_Mixin, websocketMixin, {
 		
 		debuggingonSave: function() {
 			var self = this,
-			sessFilename = self.get('codeEditorCtrl').getSessionFilename();
-			if(self.isDebugActive()) {
-				if(Ember.isNone(wsTerminal) || wsTerminal.readyState !== 1) {
-					self.initializeTerminalWebSocket({action: 'DEBUG', debugAction: 'SAVE'});
-				}
-				else {
-					wsTerminal.send('{group: DEBUG, filepath: "'+sessFilename+'", action:SAVE}');
+				sessFilename = self.get('codeEditorCtrl').getSessionFilename(),
+				isshowDebugView = self.get('isShowDebugView'),
+				isCurrConfigId = self.get('debugControllers.configId'),
+				isJavaBox = (self.get('currentUser.currentBox.type') === "java" || self.get('currentUser.currentBox.type') === "zohobox") ? true : false,
+				isJavaFile = (commonUtils.getFileExtension(sessFilename) === "java") ? true : false;
+			if(isJavaBox && isJavaFile) {
+				if(isshowDebugView && !Em.isNone(isCurrConfigId) && !Em.isEmpty(isCurrConfigId)) {
+					var debugonSave_detailsReq = self.store.query("configuration/debugaction", { filepath: sessFilename, configId: isCurrConfigId, debugtype: "debugSave"});
+					debugonSave_detailsReq.then((debugonSave_detailsRes) => {
+						debugonSave_detailsRes.filter((item) => {
+							self.debuggingController(item);
+						});
+					});
 				}
 			}
 		},
 		
 		debuggingAction: function(debugType) {
 			var self = this,
+				configId = self.get('debugControllers.configId'),
 				debugNext = self.get('debugControllers.next'),
 				isDebugActionRunning = self.get('debugActionAlreadyRunning');
-			if(isDebugActionRunning) {
+			if(isDebugActionRunning && debugType !== "debugStop") {
 				return;
 			}
-			if(debugType === "STOP") {
+			if(debugType === "debugStop") {
 				debugNext = true;
 			}
 			self.send('clearDebugMarker');
@@ -208,20 +119,20 @@ export default Ember.Controller.extend(breakpoint_Mixin, websocketMixin, {
 				debugThreads: []
 			});
 			if(debugNext){
-				if(Ember.isNone(wsTerminal) || wsTerminal.readyState !== 1) {
-					self.initializeTerminalWebSocket({action: 'DEBUG', debugAction: debugType});
-				}
-				else {
-					wsTerminal.send('{group: DEBUG, action:'+debugType+'}');
-				}
 				self.set('debugActionAlreadyRunning', true);
+				var debugNext_detailsReq = self.store.query("configuration/debugaction", { configId: configId, debugtype: debugType});
+				debugNext_detailsReq.then((debugNext_detailsRes) => {
+					debugNext_detailsRes.filter((item) => {
+						self.debuggingController(item);
+						self.set('debugActionAlreadyRunning', false);
+					});
+				});
 			}
 		},
 		
 		clearDebugMarker: function() {
 			var self = this,
 				getPreviousDebugMarkerSession = self.get('appCtrl').getLastDebugMarkerSession();
-			self.set('isDebuggerPaused', false);
 			if(!Ember.isNone(getPreviousDebugMarkerSession)) {
 				self.get('codeEditorCtrl').clearDebugMarker(getPreviousDebugMarkerSession);
 			}
@@ -261,6 +172,11 @@ export default Ember.Controller.extend(breakpoint_Mixin, websocketMixin, {
 			self.get('appCtrl').removeLayoutView('debug');
 		},
 		
+		setdebugActionType: function(debugActionType) {
+			var self = this;
+			self.set('debugActionType', debugActionType);
+		},
+		
 		runConfiguration: function() {
 			var self = this;
 			self.get('commonConfCtrl').runConfigModel({
@@ -281,57 +197,7 @@ export default Ember.Controller.extend(breakpoint_Mixin, websocketMixin, {
 		gotoFile: function(filepath, lineNumber){
 			var self = this;
 			self.get("appCtrl").send('openFile', filepath, { "setlineNumber": lineNumber });
-		},
-		
-		toggleLayout: function(layout) {
-			let self = this;
-			let debugLayout = Em.$("#debugMainView").layout(),
-			debugSouthLayout = Em.$("#debug_southPane").layout();
-			var northSize = debugLayout.state.center.maxHeight;
-			var centerSize = debugSouthLayout.state.center.maxHeight;
-			var southSize = debugSouthLayout.state.south.size;
-			var debugHeight = northSize + centerSize + southSize;
-			if(layout.expand) {
-				if(layout.location === "north") {
-						debugLayout.sizePane("south", debugHeight-25);
-						debugSouthLayout.sizePane("south", southSize+northSize-25);
-				}
-				else if(layout.location === "center") {
-					debugSouthLayout.sizePane("south", southSize + centerSize - 25);
-				}
-				else if(layout.location === "south") {
-					$("#bpoint-mainElem").hide();
-					Ember.set(self.get('debugMenuItems').findBy("id", layout.id), 'expand', !(layout.expand));
-				}
-			} 
-			else {
-				if(layout.location === "north") {
-					debugLayout.sizePane("south", debugHeight - 200);
-				}
-				if(layout.location === "center") {
-					if(southSize > northSize) {
-						debugSouthLayout.sizePane("south", southSize- 200+25);
-					}
-					else {
-						debugLayout.sizePane("south", southSize+200);
-					}
-					debugSouthLayout.sizePane("center", 200);
-				}
-				else if(layout.location === "south") {
-					if(southSize < 100) {
-						if(centerSize > northSize) {
-							debugSouthLayout.sizePane("south", southSize+centerSize-25);
-						}
-						else {
-							debugLayout.sizePane("south", southSize+ 200);
-							debugSouthLayout.sizePane("south", southSize+centerSize-25);
-						}
-						debugSouthLayout.sizePane("south", 200);
-					}
-					Ember.set(self.get('debugMenuItems').findBy("id", layout.id), 'expand', !(layout.expand));
-					$("#bpoint-mainElem").show();
-				}
-			}
 		}
+		
 	}
 });
