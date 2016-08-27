@@ -8,10 +8,10 @@
 	{{/if}}
 	<div class="pagesbar {{if sbarexpanded 'pagesbar-expanded' 'pagesbar-collapsed'}}">
 		{{#if existUser}}
-			<div class="content-wrapper">
+		{{else}}
+		    <div class="newUserOuterDv">
 				{{outlet}}
 			</div>
-		{{else}}
 			<div class="newUserOuterDv">
 				{{outlet}}
 			</div>
