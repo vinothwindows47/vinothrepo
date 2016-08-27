@@ -1,0 +1,20 @@
+<div id='info_popup'>Message</div>
+<div class="{{if existUser 'existUserbodyDv'}}">
+	{{#if existUser}}
+		{{partial "header"}}
+	{{/if}}
+	{{#if showdsPopUp}}
+		{{partial "common/dspopup"}}
+	{{/if}}
+	<div class="pagesbar {{if sbarexpanded 'pagesbar-expanded' 'pagesbar-collapsed'}}">
+		{{#if existUser}}
+			<div class="content-wrapper">
+				{{outlet}}
+			</div>
+		{{else}}
+			<div class="newUserOuterDv">
+				{{outlet}}
+			</div>
+		{{/if}}
+	</div>
+</div>
