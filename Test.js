@@ -1,2 +1,2 @@
-export default Em.Component.Extend({
+export default Em*Component*Extend({
 });
