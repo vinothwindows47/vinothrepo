@@ -1,2 +1,2 @@
-export default cideComp.extend({
+export default Em.Component.extend({
 });
