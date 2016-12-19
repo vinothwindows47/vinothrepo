@@ -1,10 +1,7 @@
 /**
  * Splitter Layout component use in split two layout view .
  */
-
-import cideComp from 'cide/components/cide-component';
-
-export default cideComp.extend({
+export default Em.Component.extend({
 	
 	didInsertElement() {
 		let self = this,
@@ -51,11 +48,28 @@ export default cideComp.extend({
 	
 	  resizeoutletLayouts: function() {
 		  	let self = this,
-		  		splitType = self.get('splitType');
+		  		splitType = self.get('splitType'),
+		  		thisCtrl = self.get('thisCtrl');
 		  	if(splitType === "aceDiff") {
-		  	    let diffCtrl = self._getController();
-		  	    diffCtrl.resizeDiffLayout();
+		  		let layoutPos = self.getdiffLayoutPosition(),
+		  			acediffheight = (thisCtrl === "repo/compare" || thisCtrl === "repo/mergeresolve") ? layoutPos.height - 70 + "px" : layoutPos.height - 30 + "px",
+		  			acediffwidth = layoutPos.width - 20 + "px",
+		  			acediffgroupwidth = layoutPos.width - 18 + "px";
+				$('#acediff-container').css({'width':acediffwidth, 'height': acediffheight });
+				$('#acediffgroup-container').css({'width':acediffgroupwidth});
+				if(!Em.isNone(window.aceDiffToolObj)) {
+					window.aceDiffToolObj.editors.left.ace.resize();
+					window.aceDiffToolObj.editors.right.ace.resize();
+					window.aceDiffToolObj.updateaceDiffResizer();
+				}
 		  	}
+	  },
+	  
+	  getdiffLayoutPosition: function() {
+		  let outletLayoutWidth = Em.$("#rightDiffLayout").width(),
+		  	  outletLayoutHeight = Em.$("#rightDiffLayout").height(),
+		  	  olPosObj = { width: outletLayoutWidth, height: outletLayoutHeight};
+		  return olPosObj;
 	  }
 
 });
